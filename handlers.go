@@ -21,3 +21,7 @@ func homePatch(w http.ResponseWriter, r *http.Request) {
 func homeDelete(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("You sent a DELETE request to the HOME route.\n"))
 }
+
+func resourcePost(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("You sent a POST request for a RESOURCE.\n"))
+}

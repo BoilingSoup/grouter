@@ -19,6 +19,8 @@ func main() {
 	mux.Patch("/", http.HandlerFunc(homePatch))
 	mux.Delete("/", http.HandlerFunc(homeDelete))
 
+	mux.Post("/resource", http.HandlerFunc(resourcePost))
+
 	srv := http.Server{
 		Addr:    ":" + *port,
 		Handler: mux,

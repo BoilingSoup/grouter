@@ -5,13 +5,15 @@ import (
 	"net/http"
 )
 
-type RoutesMap map[string]*struct {
+type MethodHandlerFuncs struct {
 	Get    http.HandlerFunc
 	Post   http.HandlerFunc
 	Put    http.HandlerFunc
 	Patch  http.HandlerFunc
 	Delete http.HandlerFunc
 }
+type RoutesMap map[string]*MethodHandlerFuncs
+
 type Mux struct {
 	*http.ServeMux
 	routes   RoutesMap
@@ -72,86 +74,72 @@ func (m *Mux) Delete(url string, handler http.HandlerFunc) {
 }
 
 func (m *Mux) newRouteStruct(url string) {
-	m.routes[url] = &struct {
-		Get    http.HandlerFunc
-		Post   http.HandlerFunc
-		Put    http.HandlerFunc
-		Patch  http.HandlerFunc
-		Delete http.HandlerFunc
-	}{
-		Get:    nil,
-		Post:   nil,
-		Put:    nil,
-		Patch:  nil,
-		Delete: nil,
-	}
+	m.routes[url] = &MethodHandlerFuncs{}
 }
 
 func (m *Mux) parse() {
-	if !m.isParsed {
-		for route, handlers := range m.routes {
-			m.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-				if route == "/" && r.URL.Path != "/" {
-					http.NotFound(w, r)
-					return
-				}
+	if m.isParsed {
+		return
+	}
 
-				if r.Method == http.MethodGet {
+	doneCh := make(chan bool)
+
+	for route, handlers := range m.routes {
+		go func(route string, handlers *MethodHandlerFuncs) {
+			m.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+				switch true {
+				case route == "/" && r.URL.Path != "/":
+					http.NotFound(w, r)
+
+				case r.Method == http.MethodGet:
 					if handlers.Get == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-
 					handlers.Get(w, r)
-					return
-				}
 
-				if r.Method == http.MethodPost {
+				case r.Method == http.MethodPost:
 					if handlers.Post == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-
 					handlers.Post(w, r)
-					return
-				}
 
-				if r.Method == http.MethodPut {
+				case r.Method == http.MethodPut:
 					if handlers.Put == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-
 					handlers.Put(w, r)
-					return
-				}
 
-				if r.Method == http.MethodPatch {
+				case r.Method == http.MethodPatch:
 					if handlers.Patch == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-
 					handlers.Patch(w, r)
-					return
-				}
 
-				if r.Method == http.MethodDelete {
+				case r.Method == http.MethodDelete:
 					if handlers.Delete == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-
 					handlers.Delete(w, r)
-					return
-				}
 
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				default:
+					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				}
 			})
-		}
-		fmt.Println("routes parsed")
-		m.isParsed = true
+			doneCh <- true
+		}(route, handlers)
 	}
+
+	for range m.routes {
+		<-doneCh
+	}
+
+	fmt.Println("routes parsed")
+	m.isParsed = true
 }
 
 func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
