@@ -136,12 +136,22 @@ func (m *Mux) parse() {
 					return
 				}
 
+				if r.Method == http.MethodDelete {
+					if handlers.Delete == nil {
+						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+						return
+					}
+
+					handlers.Delete(w, r)
+					return
+				}
+
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			})
 		}
 		fmt.Println("routes parsed")
+		m.isParsed = true
 	}
-	m.isParsed = true
 }
 
 func (m *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {

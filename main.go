@@ -15,6 +15,9 @@ func main() {
 
 	mux.Get("/", http.HandlerFunc(homeGet))
 	mux.Post("/", http.HandlerFunc(homePost))
+	mux.Put("/", http.HandlerFunc(homePut))
+	mux.Patch("/", http.HandlerFunc(homePatch))
+	mux.Delete("/", http.HandlerFunc(homeDelete))
 
 	srv := http.Server{
 		Addr:    ":" + *port,
