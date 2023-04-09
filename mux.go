@@ -5,14 +5,14 @@ import (
 	"net/http"
 )
 
-type MethodHandlerFuncs struct {
-	Get    http.HandlerFunc
-	Post   http.HandlerFunc
-	Put    http.HandlerFunc
-	Patch  http.HandlerFunc
-	Delete http.HandlerFunc
+type MethodHandlers struct {
+	Get    http.Handler
+	Post   http.Handler
+	Put    http.Handler
+	Patch  http.Handler
+	Delete http.Handler
 }
-type RoutesMap map[string]*MethodHandlerFuncs
+type RoutesMap map[string]*MethodHandlers
 
 type Mux struct {
 	*http.ServeMux
@@ -28,7 +28,7 @@ func NewServeMux() *Mux {
 	}
 }
 
-func (m *Mux) Get(url string, handler http.HandlerFunc) {
+func (m *Mux) Get(url string, handler http.Handler) {
 	if _, ok := m.routes[url]; !ok {
 		m.newRouteStruct(url)
 	}
@@ -37,7 +37,7 @@ func (m *Mux) Get(url string, handler http.HandlerFunc) {
 	handlers.Get = handler
 }
 
-func (m *Mux) Post(url string, handler http.HandlerFunc) {
+func (m *Mux) Post(url string, handler http.Handler) {
 	if _, ok := m.routes[url]; !ok {
 		m.newRouteStruct(url)
 	}
@@ -46,7 +46,7 @@ func (m *Mux) Post(url string, handler http.HandlerFunc) {
 	handlers.Post = handler
 }
 
-func (m *Mux) Put(url string, handler http.HandlerFunc) {
+func (m *Mux) Put(url string, handler http.Handler) {
 	if _, ok := m.routes[url]; !ok {
 		m.newRouteStruct(url)
 	}
@@ -55,7 +55,7 @@ func (m *Mux) Put(url string, handler http.HandlerFunc) {
 	handlers.Put = handler
 }
 
-func (m *Mux) Patch(url string, handler http.HandlerFunc) {
+func (m *Mux) Patch(url string, handler http.Handler) {
 	if _, ok := m.routes[url]; !ok {
 		m.newRouteStruct(url)
 	}
@@ -64,7 +64,7 @@ func (m *Mux) Patch(url string, handler http.HandlerFunc) {
 	handlers.Patch = handler
 }
 
-func (m *Mux) Delete(url string, handler http.HandlerFunc) {
+func (m *Mux) Delete(url string, handler http.Handler) {
 	if _, ok := m.routes[url]; !ok {
 		m.newRouteStruct(url)
 	}
@@ -74,7 +74,7 @@ func (m *Mux) Delete(url string, handler http.HandlerFunc) {
 }
 
 func (m *Mux) newRouteStruct(url string) {
-	m.routes[url] = &MethodHandlerFuncs{}
+	m.routes[url] = &MethodHandlers{}
 }
 
 func (m *Mux) parse() {
@@ -85,7 +85,7 @@ func (m *Mux) parse() {
 	doneCh := make(chan bool)
 
 	for route, handlers := range m.routes {
-		go func(route string, handlers *MethodHandlerFuncs) {
+		go func(route string, handlers *MethodHandlers) {
 			m.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 				switch true {
 				case route == "/" && r.URL.Path != "/":
@@ -96,35 +96,35 @@ func (m *Mux) parse() {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-					handlers.Get(w, r)
+					handlers.Get.ServeHTTP(w, r)
 
 				case r.Method == http.MethodPost:
 					if handlers.Post == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-					handlers.Post(w, r)
+					handlers.Post.ServeHTTP(w, r)
 
 				case r.Method == http.MethodPut:
 					if handlers.Put == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-					handlers.Put(w, r)
+					handlers.Put.ServeHTTP(w, r)
 
 				case r.Method == http.MethodPatch:
 					if handlers.Patch == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-					handlers.Patch(w, r)
+					handlers.Patch.ServeHTTP(w, r)
 
 				case r.Method == http.MethodDelete:
 					if handlers.Delete == nil {
 						http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 						return
 					}
-					handlers.Delete(w, r)
+					handlers.Delete.ServeHTTP(w, r)
 
 				default:
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
